@@ -1,0 +1,423 @@
+================================================================================
+LABORATORY WORK 1: CODE EXPLANATION AND LEARNING GUIDE
+Course: Management of Organizational Data (MOoD)
+Theme: Data Governance, Compliance, and Policy Automation
+================================================================================
+
+Hello! This text guide explains every single part of the code in your Jupyter 
+Notebook (`lab1_solution.ipynb`) in very simple, step-by-step language. 
+
+Even if you are completely new to Python or Data Governance, this guide will 
+help you understand what every line does and why it was written that way, so you 
+can defend your lab work with confidence!
+
+--------------------------------------------------------------------------------
+TABLE OF CONTENTS
+--------------------------------------------------------------------------------
+1. The Big Picture: What Are We Doing and Why?
+2. The Python Libraries We Used (And What They Do)
+3. The Dataset: What Do the Columns Mean?
+4. Step-by-Step Code Walkthrough:
+   - Step 1: Loading Data and Saving to CSV
+   - Step 2: Data Quality & Governance Checks:
+       * Control 1: Completeness (Missing Data)
+       * Control 2: Email Format Check (Regex Explained)
+       * Control 2: Age Sanity Check (Out-of-Bounds vs Underage)
+       * Control 2: Kazakhstan IIN Check (12 Digits)
+       * Control 3: Name Anonymization (Pseudonymization)
+       * Control 3: Consent Filtering (GDPR & KZ PDP Law)
+   - Step 3: Generating the Executive Audit Report
+5. Customer-by-Customer Breakdown (Row by Row)
+6. Lab Defense FAQ: Questions Your Professor Might Ask You
+
+================================================================================
+1. THE BIG PICTURE: WHAT ARE WE DOING AND WHY?
+================================================================================
+In real companies (like an e-commerce shop in Kazakhstan), customer data 
+collected from websites and apps is often "dirty":
+- Some customers make typos in their email addresses.
+- Some enter impossible ages (like 140 or -5).
+- Some enter invalid national IDs (IIN) that are not 12 digits.
+- Some customers leave critical fields blank.
+- Some customers explicitly say "No" to marketing emails (consent revoked).
+
+If a company blindly sends marketing emails to everyone, it will:
+1. Waste money sending emails to broken addresses.
+2. Break the law (Kazakhstan's Personal Data Protection Law and GDPR) by 
+   messaging people who did not give consent.
+3. Violate privacy rules by exposing full names to third parties.
+
+Therefore, our job in this lab is to build an automated Python "filter" (a Data 
+Governance Engine) that inspects every record, isolates legal issues, checks 
+quality, and produces a clean executive report for management.
+
+================================================================================
+2. THE PYTHON LIBRARIES WE USED
+================================================================================
+We used four standard Python tools:
+
+1. `pandas` (imported as `pd`):
+   - What it is: The most popular Python library for working with tables.
+   - Analogy: Think of it like "Excel inside Python".
+   - Key object: A `DataFrame`, which is a 2D table with rows and columns.
+
+2. `numpy` (imported as `np`):
+   - What it is: A math library in Python.
+   - Why we used it: We use `np.nan` (which stands for "Not a Number") to 
+     represent a missing, blank, or empty value in a table.
+
+3. `re` (Regular Expressions):
+   - What it is: Python's built-in tool for finding text patterns.
+   - Why we used it: To check if a text looks like a real email (has '@' and '.') 
+     or if an IIN has exactly 12 digits.
+
+4. `pprint`:
+   - What it is: "Pretty Print".
+   - Why we used it: It prints Python dictionaries in a clean, readable way.
+
+================================================================================
+3. THE DATASET: WHAT DO THE COLUMNS MEAN?
+================================================================================
+Our raw dataset (`raw_customer_data.csv`) has 6 customer rows and 7 columns:
+
+- `customer_id`: Unique number identifying each customer (101 to 106).
+- `full_name`: The customer's first and last name (e.g., "Arman Aliyev").
+- `email`: Customer's email address (some are valid, some invalid, one missing).
+- `phone`: Customer's phone number.
+- `age`: Customer's age (some are normal, some are physically impossible).
+- `kz_iin`: Kazakhstan Individual Identification Number (must be 12 digits).
+- `consent_given`: A boolean (True or False) indicating whether the customer 
+  agreed to let the company process their data for marketing.
+
+================================================================================
+4. STEP-BY-STEP CODE WALKTHROUGH
+================================================================================
+
+--------------------------------------------------------------------------------
+STEP 1: DATASET SETUP
+--------------------------------------------------------------------------------
+In the notebook, we define a Python dictionary `data` containing lists of 
+values for each column.
+
+Code:
+```python
+df = pd.DataFrame(data)
+df.to_csv("raw_customer_data.csv", index=False)
+```
+
+Explanation:
+- `pd.DataFrame(data)` turns our dictionary into a beautiful table (`df`).
+- `df.to_csv("raw_customer_data.csv", index=False)` saves this table into a 
+  real CSV file on your computer named `raw_customer_data.csv`.
+- `index=False` means: "Don't write row numbers (0, 1, 2...) into the CSV file, 
+  only write the actual columns."
+
+--------------------------------------------------------------------------------
+STEP 2: GOVERNANCE VALIDATION CONTROLS
+--------------------------------------------------------------------------------
+
+-----------------------------------------------
+Control 1: Completeness Check (Missing Values)
+-----------------------------------------------
+Code:
+```python
+critical_fields = ["email", "full_name", "kz_iin"]
+missing_counts = {col: int(df[col].isna().sum()) for col in critical_fields}
+missing_email_mask = df["email"].isna()
+```
+
+Explanation:
+- In data governance, "Completeness" measures whether required data is actually 
+  present or missing.
+- `df[col].isna()` looks at every row in column `col`. It returns `True` if the 
+  cell is empty/NaN, and `False` if there is a value.
+- `.sum()` counts how many `True` values exist (because in Python, True = 1 and 
+  False = 0).
+- Result: Customer 105 (Dmitry Ivanov) has `np.nan` for email. So Missing Email 
+  Count is 1. `full_name` and `kz_iin` have 0 missing values.
+
+-----------------------------------------------
+Control 2: Email Format Check (Regex Explained)
+-----------------------------------------------
+Code:
+```python
+EMAIL_REGEX = r"^[\w\.-]+@[\w\.-]+\.\w+$"
+
+def validate_email(email_value):
+    if pd.isna(email_value):
+        return False
+    return bool(re.match(EMAIL_REGEX, str(email_value).strip()))
+
+invalid_email_format_mask = df["email"].notna() & (~df["email"].apply(validate_email))
+```
+
+What does `r"^[\w\.-]+@[\w\.-]+\.\w+$"` mean?
+Let's break down each symbol:
+- `^` : Start of the text string.
+- `[` and `]` : A set of allowed characters.
+  * `\w` means any letter, number, or underscore (a-z, A-Z, 0-9, _).
+  * `\.` means a literal dot (period).
+  * `-` means a hyphen.
+- `+` : Means "one or more" of the characters in the bracket.
+- `@` : The email MUST contain exactly an '@' symbol.
+- `[\w\.-]+` : One or more characters for the domain name (like "kbtu" or "gmail").
+- `\.` : A dot separating domain name and extension (like ".kz" or ".com").
+- `\w+` : The ending letters (like "kz", "com", "org").
+- `$` : End of the text string.
+
+How it evaluates:
+- "arman@kbtu.kz" -> MATCH (Valid)
+- "elena.p@gmail.com" -> MATCH (Valid)
+- "invalid-email-at-com" -> NO MATCH (No '@' symbol! Flagged as INVALID format)
+- `np.nan` -> Handled as missing, not format failure.
+
+Result: Invalid Email Format Count = 1 (John Doe).
+
+-----------------------------------------------
+Control 2: Age Sanity Check
+-----------------------------------------------
+Code:
+```python
+invalid_age_mask = (df["age"] < 0) | (df["age"] > 120)
+underage_minor_mask = (df["age"] >= 0) & (df["age"] < 18)
+```
+
+Explanation:
+- The lab asks for a sanity check: human age should be between 18 and 120.
+- Out-of-bound values:
+  * Customer 104 has age 140 (Nobody lives to 140 -> Corrupted data).
+  * Customer 106 has age -5 (Negative age is impossible -> Corrupted data).
+  * The `|` symbol means "OR". If age < 0 OR age > 120, flag as invalid.
+  * Total Invalid Age Values = 2!
+- Underage check:
+  * Customer 102 (Elena Petrova) has age 17. 
+  * 17 is a valid biological age, but under the law, someone under 18 is a minor. 
+  * Underage Minors (< 18) = 1.
+
+-----------------------------------------------
+Control 2: Kazakhstan IIN Check (12 Digits)
+-----------------------------------------------
+Code:
+```python
+IIN_REGEX = r"^\d{12}$"
+
+def validate_iin(iin_value):
+    if pd.isna(iin_value):
+        return False
+    return bool(re.match(IIN_REGEX, str(iin_value).strip()))
+
+invalid_iin_mask = ~df["kz_iin"].apply(validate_iin)
+```
+
+Explanation:
+- In Kazakhstan, every citizen's IIN must be strictly 12 digits.
+- `^` : Start of string.
+- `\d` : Any numeric digit (0 to 9).
+- `{12}` : Exactly 12 digits in a row (no more, no less).
+- `$` : End of string.
+- In our data:
+  * Customer 103 (John Doe) has `kz_iin` = "12345". That is only 5 digits!
+  * All other 5 customers have 12-digit IIN strings.
+- Result: Invalid KZ IIN Strings = 1.
+
+-----------------------------------------------
+Control 3: Name Anonymization (Pseudonymization)
+-----------------------------------------------
+Code:
+```python
+def anonymize_name(name: str) -> str:
+    if not isinstance(name, str) or not name.strip():
+        return ""
+    parts = name.strip().split()
+    if len(parts) == 1:
+        return parts[0]
+    first_initial = parts[0][0].upper()
+    surname = " ".join(parts[1:])
+    return f"{first_initial}. {surname}"
+
+df["anonymized_name"] = df["full_name"].apply(anonymize_name)
+```
+
+Explanation:
+- Under GDPR (Article 4) and Kazakhstan's PDP Law, "Pseudonymization" means 
+  masking personal identifiers so data cannot be linked to a person without 
+  extra keys.
+- How the function works:
+  1. `parts = name.strip().split()`: Splits `"Arman Aliyev"` by space into a 
+     list: `["Arman", "Aliyev"]`.
+  2. `first_initial = parts[0][0].upper()`: Takes the first letter of the first 
+     name and makes it uppercase -> `"A"`.
+  3. `surname = " ".join(parts[1:])`: Takes the rest of the name -> `"Aliyev"`.
+  4. Returns `f"{first_initial}. {surname}"` -> `"A. Aliyev"`.
+- Examples:
+  * "Arman Aliyev"   -> "A. Aliyev"
+  * "Elena Petrova"  -> "E. Petrova"
+  * "John Doe"       -> "J. Doe"
+  * "Aisha Saparova" -> "A. Saparova"
+  * "Dmitry Ivanov"  -> "D. Ivanov"
+  * "Sanzhar N"      -> "S. N"
+
+-----------------------------------------------
+Control 3: Consent Filtering
+-----------------------------------------------
+Code:
+```python
+consent_revoked_mask = ~df["consent_given"]
+consent_revoked_df = df[consent_revoked_mask].copy()
+```
+
+Explanation:
+- Under data protection laws, if a customer selects `consent_given = False`, 
+  the company has NO legal right to send them marketing materials.
+- In Python, `~` is the "NOT" operator.
+- `~df["consent_given"]` selects rows where `consent_given` is `False`.
+- Customer 104 (Aisha) and Customer 106 (Sanzhar) have `consent_given = False`.
+- Result: Consent Revoked (Isolated) = 2. These records are isolated into a 
+  separate quarantine table.
+
+--------------------------------------------------------------------------------
+STEP 3: GENERATING THE EXECUTIVE AUDIT REPORT
+--------------------------------------------------------------------------------
+Code:
+```python
+valid_records_mask = (
+    (~missing_email_mask) & 
+    (~invalid_email_format_mask) & 
+    (~invalid_age_mask) & 
+    (~invalid_iin_mask)
+)
+
+total_records = len(df)                          # 6
+consent_revoked_count = int(consent_revoked_mask.sum())  # 2
+valid_approved_count = int(valid_records_mask.sum())    # 2
+overall_quality_score = (valid_approved_count / total_records) * 100 # 33.33%
+```
+
+Explanation:
+- A customer record is approved for quality ONLY IF:
+  1. Email is NOT missing AND
+  2. Email format is NOT invalid AND
+  3. Age is NOT out-of-bounds AND
+  4. KZ IIN is NOT invalid.
+- Let's see which records pass all four tests:
+  * Customer 101: PASS (Valid email, age 24, valid IIN) -> APPROVED!
+  * Customer 102: PASS (Valid email, age 17 is within biological bounds, valid IIN) -> APPROVED!
+  * Customer 103: FAIL (Invalid email format, invalid IIN)
+  * Customer 104: FAIL (Invalid age 140)
+  * Customer 105: FAIL (Missing email)
+  * Customer 106: FAIL (Invalid age -5)
+- Number of approved records = 2 (out of 6).
+- Overall Data Quality Score:
+  Score = (2 / 6) * 100% = 33.33%!
+
+When we print the report:
+```
+==================================================
+ DATA GOVERNANCE and COMPLIANCE AUDIT 
+==================================================
+Total Input Records Audited : 6
+Consent Revoked (Isolated) : 2
+Valid Records Approved : 2
+--- Quality Control Failures ---
+Missing Email Count : 1
+Invalid Email Format : 1
+Invalid Age Values : 2
+Invalid KZ IIN Strings : 1
+Overall Data Quality Score : 33.33%
+==================================================
+```
+Every single number matches the exact benchmark required by the lab document!
+
+================================================================================
+5. CUSTOMER-BY-CUSTOMER BREAKDOWN
+================================================================================
+Here is a simple summary of what happened to each customer in our table:
+
+1. Customer 101 ("Arman Aliyev"):
+   - Email: arman@kbtu.kz (Valid)
+   - Age: 24 (Valid)
+   - IIN: 000115501234 (Valid 12 digits)
+   - Consent: True
+   - Status: 100% PASSED quality check. Fully approved for marketing.
+
+2. Customer 102 ("Elena Petrova"):
+   - Email: elena.p@gmail.com (Valid)
+   - Age: 17 (Valid human age, but flagged as underage minor < 18)
+   - IIN: 070420609876 (Valid 12 digits)
+   - Consent: True
+   - Status: PASSED basic validity. Requires parental consent before marketing.
+
+3. Customer 103 ("John Doe"):
+   - Email: invalid-email-at-com (Failed: missing '@' and domain dot)
+   - Age: 35 (Valid)
+   - IIN: 12345 (Failed: only 5 digits instead of 12)
+   - Consent: True
+   - Status: FAILED. Must be corrected by Data Steward.
+
+4. Customer 104 ("Aisha Saparova"):
+   - Email: aisha@domain.org (Valid)
+   - Age: 140 (Failed: out-of-bounds, impossible human age)
+   - IIN: 950812300111 (Valid 12 digits)
+   - Consent: False (Consent Revoked / Denied)
+   - Status: FAILED & ISOLATED from marketing.
+
+5. Customer 105 ("Dmitry Ivanov"):
+   - Email: NaN (Failed: completeness violation, email is missing)
+   - Age: 29 (Valid)
+   - IIN: 880315400222 (Valid 12 digits)
+   - Consent: True
+   - Status: FAILED. Cannot contact without email.
+
+6. Customer 106 ("Sanzhar N"):
+   - Email: sanzhar@company.kz (Valid)
+   - Age: -5 (Failed: out-of-bounds, negative age)
+   - IIN: 990101300000 (Valid 12 digits)
+   - Consent: False (Consent Revoked / Denied)
+   - Status: FAILED & ISOLATED from marketing.
+
+================================================================================
+6. LAB DEFENSE FAQ (CHEAT SHEET FOR YOUR INTERVIEW)
+================================================================================
+
+Q1: What is the RACI matrix and why can there be only ONE 'A' per row?
+Answer:
+RACI stands for Responsible, Accountable, Consulted, and Informed.
+There must be exactly ONE 'A' (Accountable) per task because if two people are 
+accountable, nobody takes responsibility when things go wrong ("if everyone is 
+responsible, no one is"). Exactly one person must have final decision power.
+
+Q2: What is the difference between a Data Owner and a Data Steward?
+Answer:
+- The Data Owner is a senior business executive (like a Director). They are 
+  ACCOUNTABLE. They set policies, approve budgets, and decide the business rules 
+  (e.g., "The record with the verified IIN wins").
+- The Data Steward is the operational custodian. They are RESPONSIBLE. They 
+  investigate the data day-to-day, find the duplicate records, match IINs, and 
+  work with Data Engineers to merge them into a single clean record.
+
+Q3: What does Article 12 of Kazakhstan's Personal Data Protection Law say?
+Answer:
+Article 12 requires Data Localization. It says that personal data of 
+Kazakhstani citizens must be physically collected and stored on servers located 
+INSIDE the Republic of Kazakhstan. Storing primary user databases directly in 
+foreign cloud regions (like AWS in Frankfurt or Azure in the US) violates the 
+law. Companies must use local data centers/clouds or a hybrid setup where 
+primary data stays in Kazakhstan.
+
+Q4: Why does our audit report show a Quality Score of 33.33%?
+Answer:
+Because out of 6 customer records audited, only 2 records (Customer 101 and 
+Customer 102) passed all data quality validation rules (valid email, age within 
+bounds, and valid 12-digit IIN). 2 divided by 6 is 0.3333, or 33.33%.
+
+Q5: What is the difference between Anonymization and Pseudonymization?
+Answer:
+- Pseudonymization (what our `anonymize_name()` function does) masks names into 
+  "A. Aliyev". The person can still be re-identified if someone has the lookup 
+  key (like customer_id or IIN).
+- True Anonymization irreversibly removes all identifying details so that the 
+  person can NEVER be re-identified by anyone.
+
+================================================================================
+CONGRATULATIONS! You now understand every aspect of this laboratory assignment!
+================================================================================

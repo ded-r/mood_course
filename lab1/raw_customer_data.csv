@@ -1,0 +1,7 @@
+customer_id,full_name,email,phone,age,kz_iin,consent_given
+101,Arman Aliyev,arman@kbtu.kz,+77015551234,24,000115501234,True
+102,Elena Petrova,elena.p@gmail.com,87071112233,17,070420609876,True
+103,John Doe,invalid-email-at-com,+77029998877,35,12345,True
+104,Aisha Saparova,aisha@domain.org,12345,140,950812300111,False
+105,Dmitry Ivanov,,+77053334455,29,880315400222,True
+106,Sanzhar N,sanzhar@company.kz,77080001122,-5,990101300000,False

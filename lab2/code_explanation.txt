@@ -1,0 +1,360 @@
+================================================================================
+LABORATORY WORK 2: CODE EXPLANATION AND DEFENSE GUIDE
+Course: Management of Organizational Data (MOoD)
+Theme: Organizational Data Modeling, Relational Normalization, and PostgreSQL
+Student: Didar Auyesbay | Student ID: 25MD0303 | Group: Sat 13:00 - 16:00
+================================================================================
+
+Hello Didar! This comprehensive guide walks you through every single concept, 
+diagram, SQL statement, and Python file in your Lab 2 submission in simple, 
+clear, and highly professional language. 
+
+When your instructor (Nazgul Seralina) asks you to defend your ER diagram, 
+explain your normalization steps, or explain your PostgreSQL constraints, this 
+guide will ensure you answer with total confidence and receive the highest mark!
+
+--------------------------------------------------------------------------------
+TABLE OF CONTENTS
+--------------------------------------------------------------------------------
+1. The Big Picture: What Did We Build and Why?
+2. Domain Selection: Why Human Resources (HR)?
+3. The 10 Business Requirements in Plain English
+4. ER Modeling in Mermaid.ai: How Entities Connect
+5. The Normalization Journey: UNF → 1NF → 2NF → 3NF
+   - Understanding the 3 Fatal Database Anomalies
+   - Step 1: UNF to 1NF (Atomicity & Flattening)
+   - Step 2: 1NF to 2NF (Removing Partial Dependencies)
+   - Step 3: 2NF to 3NF (Removing Transitive Dependencies)
+6. PostgreSQL DDL Architecture: Why Every Line Matters
+   - The Circular Foreign Key Trick (Department Manager vs Employee)
+   - Declarative Constraints: CHECK, UNIQUE, NOT NULL
+   - Referential Integrity: ON DELETE RESTRICT vs ON DELETE CASCADE
+7. The Python Microservice & Pytest Architecture
+   - SQLAlchemy Declarative Models
+   - Flask REST API Endpoints
+   - 10/10 Automated Pytest Suite
+8. Top 10 Lab Defense Questions & Winning Answers (Nazgul Seralina FAQ)
+
+================================================================================
+1. THE BIG PICTURE: WHAT DID WE BUILD AND WHY?
+================================================================================
+In most poorly organized companies, employee and project information is initially 
+dumped into a giant, messy Excel spreadsheet. 
+
+For example, a single row might contain an employee's name, email, department, 
+salary, and three different projects they are working on, all crammed into one cell.
+This leads to chaos:
+- If someone's salary changes, you have to remember to update 10 different rows. 
+  If you forget one row, your database is corrupted (Update Anomaly).
+- You cannot create a new department unless you hire someone into it first (Insertion Anomaly).
+- If the only employee working on a project leaves the company, deleting their row 
+  accidentally deletes the entire project from the company's records (Deletion Anomaly).
+
+To solve this, we took the chaotic spreadsheet, applied Edgar F. Codd's mathematical 
+normalization rules (1NF, 2NF, 3NF), designed a clean Entity-Relationship (ER) model 
+in Mermaid.ai, wrote a rock-solid PostgreSQL schema with declarative constraints, 
+and built a working Python microservice with 10 automated unit tests that prove 
+our database cannot be corrupted.
+
+================================================================================
+2. DOMAIN SELECTION: WHY HUMAN RESOURCES (HR)?
+================================================================================
+In the assignment brief (`lab2_ManofOrgDt (1).docx`), the instructor provided a 
+strict rule for domain selection based on Student ID:
+- IDs ending in 0, 2: University
+- IDs ending in 1, 3: HR (Human Resources)
+- IDs ending in 4: Hospital
+- IDs ending in 5: Logistics
+- IDs ending in 6: Bank
+- IDs ending in 7: E-commerce
+- IDs ending in 8: Library
+- IDs ending in 9: Hotel
+
+Your Student ID is: 25MD0303.
+The final digit is 3. 
+Therefore, your assigned and required domain is 100% HR (Human Resources Management)!
+
+================================================================================
+3. THE 10 BUSINESS REQUIREMENTS IN PLAIN ENGLISH
+================================================================================
+Every database must mirror the real world. We formulated 10 explicit rules:
+- BR-01 (Departments): Departments have unique names and positive operating budgets.
+- BR-02 (Managers): Each department has exactly one manager who is an active employee.
+- BR-03 (Employees): Employees have a unique 12-digit IIN, corporate email, minimum wage 
+  compliance (>= 85,000 KZT), and must be at least 18 years old at hire.
+- BR-04 (Salary Grades): Job roles define [min_salary, max_salary]. An employee's base salary 
+  must fall within their job role's grade.
+- BR-05 (Projects): Projects have unique names, positive budgets, and valid date sequencing (end_date >= start_date).
+- BR-06 (Staffing M:N): An employee can work on multiple projects; a project has multiple staff. 
+  Tracked via `project_assignments` with weekly hours between 1 and 40, and no duplicate assignments.
+- BR-07 (Leave Requests): Employees request leave (Vacation, Sick, Unpaid) with date ordering and manager approval.
+- BR-08 (Performance Reviews): Quarterly reviews by supervisors scored 1 to 5 with feedback.
+- BR-09 (Payroll Records): Monthly payroll ledger ensuring net pay = gross pay - deductions (net_pay <= gross_pay).
+- BR-10 (Integrity Protection): Departments with employees cannot be dropped (ON DELETE RESTRICT). 
+  Assignments cascade on employee termination, but financial records are preserved for auditing.
+
+================================================================================
+4. ER MODELING IN MERMAID.AI: HOW ENTITIES CONNECT
+================================================================================
+In our Mermaid ER Diagram (`lab2/mermaid_er_diagram.mmd`):
+1. DEPARTMENT ||--o{ EMPLOYEE ("employs"):
+   - One department has zero-to-many employees (1:N).
+2. DEPARTMENT ||--o| EMPLOYEE ("managed_by"):
+   - One department has zero-or-one employee manager (1:1).
+3. JOB_ROLE ||--o{ EMPLOYEE ("classifies"):
+   - One job role classifies zero-to-many employees (1:N).
+4. EMPLOYEE ||--o{ PROJECT_ASSIGNMENT ("allocated_to"):
+   - One employee has zero-to-many project assignments.
+5. PROJECT ||--|{ PROJECT_ASSIGNMENT ("staffed_by"):
+   - One project has one-to-many assignments.
+   - NOTICE: This associative junction table decomposes the complex M:N relationship 
+     between Employee and Project into two clean 1:N relationships!
+6. EMPLOYEE ||--o{ LEAVE_REQUEST ("submits"):
+   - One employee submits zero-to-many leave requests.
+7. EMPLOYEE ||--o{ PERFORMANCE_REVIEW ("subject_of"):
+   - One employee has zero-to-many periodic reviews.
+8. EMPLOYEE ||--o{ PAYROLL_RECORD ("receives"):
+   - One employee receives monthly payroll records.
+
+How to view in Mermaid:
+Simply copy the code in `lab2/mermaid_er_diagram.mmd` and paste it into https://mermaid.live 
+or Mermaid.ai!
+
+================================================================================
+5. THE NORMALIZATION JOURNEY: UNF → 1NF → 2NF → 3NF
+================================================================================
+
+Why do we normalize?
+E. F. Codd proved that unnormalized tables cause THREE FATAL ANOMALIES:
+1. Insertion Anomaly: You want to insert a project or department, but because the table 
+   requires an employee ID as part of the primary key, you cannot add the department 
+   unless an employee is hired immediately!
+2. Update Anomaly: Department "Software Engineering" appears in 50 rows. If the company 
+   renames it to "AI & Engineering", you have to update 50 rows. If your script crashes 
+   halfway, half the company is in one department and half in another.
+3. Deletion Anomaly: If the only employee working on Project X resigns, deleting their row 
+   permanently deletes all knowledge of Project X from the database!
+
+--------------------------------------------------------------------------------
+5.1 THE UNNORMALIZED FORM (UNF) TABLE: WHAT IT LOOKS LIKE
+--------------------------------------------------------------------------------
+Before normalization, companies typically store organizational data in a single, 
+flat spreadsheet table where all entities (employees, departments, job roles, and 
+projects) are merged into one monolithic row.
+
+Schema:
+UNF_HR_SPREADSHEET (emp_id, full_name, corporate_email, dept_id, dept_name, dept_manager, 
+                    job_id, job_title, salary, {proj_id, proj_name, proj_role, weekly_hours})
+
++--------+-----------------+-----------------------+---------+----------------------+----------------+--------+--------------------+-----------+------------------------------------------------------------------------+
+| emp_id | full_name       | corporate_email       | dept_id | dept_name            | dept_manager   | job_id | job_title          | salary    | Projects Assigned {proj_id, proj_name, proj_role, weekly_hours}        |
++--------+-----------------+-----------------------+---------+----------------------+----------------+--------+--------------------+-----------+------------------------------------------------------------------------+
+| 101    | Didar Auyesbay  | d.auyesbay@company.kz | 10      | Software Engineering | Didar Auyesbay | 1      | Lead Architect     | 1,250,000 | (501, HR Automation, Tech Lead, 20), (502, Core Banking, Consult, 15) |
+| 102    | Aizhan Omarova  | a.omarova@company.kz  | 20      | Human Resources      | Aizhan Omarova | 3      | HR Director        |   850,000 | (501, HR Automation, Product Owner, 10)                                |
+| 103    | Arman Kasymov   | a.kasymov@company.kz  | 10      | Software Engineering | Didar Auyesbay | 2      | Senior Dev         |   750,000 | (501, HR Automation, Backend Dev, 40)                                 |
+| 104    | Dana Serikova   | d.serikova@company.kz | 30      | Finance              | Dana Serikova  | 5      | Financial Analyst  |   550,000 | (502, Core Banking, Auditor, 10)                                      |
++--------+-----------------+-----------------------+---------+----------------------+----------------+--------+--------------------+-----------+------------------------------------------------------------------------+
+
+Why this table is Unnormalized (UNF):
+1. Non-Atomic Attribute: "full_name" packs both first and last name into one cell.
+2. Repeating Groups: "Projects Assigned" contains an array/list of multiple projects 
+   crammed into a single cell (e.g., employee 101 has 2 projects in one cell).
+3. Redundancy: Department details and job titles are repeatedly duplicated on every 
+   employee row.
+4. No Scalable Primary Key: You cannot uniquely identify individual project assignments 
+   without breaking the nested list structure.
+
+--------------------------------------------------------------------------------
+5.2 MERMAID ER MODEL OF THE UNNORMALIZED TABLE
+--------------------------------------------------------------------------------
+In an unnormalized architecture, there are NO separated tables, NO relationships, 
+and NO foreign keys. All attributes are forced into a single monolithic entity:
+
+```mermaid
+erDiagram
+    UNNORMALIZED_HR_SPREADSHEET {
+        int emp_id "Non-scalar / Unstable identifier"
+        string full_name "NON-ATOMIC COMPOSITE: contains First + Last name"
+        string corporate_email "Email address"
+        int dept_id "Redundant department identifier"
+        string dept_name "Redundant department name"
+        string dept_manager "Redundant department manager name"
+        int job_id "Redundant job identifier"
+        string job_title "Redundant job position title"
+        numeric salary "Base salary"
+        string projects_assigned "REPEATING GROUP: nested array of (proj_id, proj_name, role, hours)"
+    }
+```
+
+--------------------------------------------------------------------------------
+STEP 1: UNF to 1NF (First Normal Form)
+--------------------------------------------------------------------------------
+- UNF Problem: In the unnormalized sheet:
+  - "Full Name" contains both first and last names (non-atomic).
+  - "Projects" is a repeating group (multiple projects comma-separated in one cell).
+- 1NF Rule: All attributes must be ATOMIC (indivisible), and every row must be unique.
+- Transformation:
+  - Split `full_name` into `first_name` and `last_name`.
+  - Flatten the repeating projects so each employee-project pairing gets its own row.
+  - Establish a composite primary key: `(employee_id, project_id)`.
+- Anomalies remaining in 1NF: Partial dependencies exist!
+
+--------------------------------------------------------------------------------
+STEP 2: 1NF to 2NF (Second Normal Form)
+--------------------------------------------------------------------------------
+- 2NF Rule: Must be in 1NF, AND no non-key attribute can be dependent on only a PART 
+  of a composite primary key (No Partial Functional Dependencies).
+- Analysis:
+  - Our composite primary key is: `{employee_id, project_id}`.
+  - Does `first_name`, `email`, or `salary` depend on `project_id`? NO! They depend 
+    ONLY on `employee_id`. That is a partial dependency!
+  - Does `project_name` depend on `employee_id`? NO! It depends ONLY on `project_id`.
+  - Only `role_in_project` and `weekly_hours` depend on BOTH `employee_id` AND `project_id`!
+- Transformation:
+  - Decompose into 3 separate tables:
+    1. `EMPLOYEE_2NF` (emp_id [PK], first_name, last_name, email, dept_id, dept_name, job_id, job_title, salary)
+    2. `PROJECT_2NF` (proj_id [PK], proj_name)
+    3. `PROJECT_ASSIGNMENT` (emp_id [FK], proj_id [FK], role_in_project, weekly_hours)
+- Anomalies remaining in 2NF: Transitive dependencies exist inside `EMPLOYEE_2NF`!
+
+--------------------------------------------------------------------------------
+STEP 3: 2NF to 3NF (Third Normal Form)
+--------------------------------------------------------------------------------
+- 3NF Rule: Must be in 2NF, AND no non-key attribute can depend transitively on the 
+  primary key via another non-key attribute (No Transitive Dependencies).
+- Analysis inside `EMPLOYEE_2NF`:
+  - `emp_id → dept_id`, AND `dept_id → dept_name, dept_manager`.
+    Therefore: `emp_id → dept_name` is a transitive dependency!
+  - `emp_id → job_id`, AND `job_id → job_title`.
+    Therefore: `emp_id → job_title` is a transitive dependency!
+- Transformation:
+  - Extract the determinants into their own independent tables:
+    1. `DEPARTMENTS` (department_id [PK], dept_name, location, budget, manager_id)
+    2. `JOB_ROLES` (job_id [PK], job_title, min_salary, max_salary)
+    3. `EMPLOYEES` (employee_id [PK], first_name, last_name, email, salary, department_id [FK], job_id [FK])
+- RESULT:
+  "Every non-key attribute depends on the key (1NF), the whole key (2NF), and nothing but the key (3NF)."
+  All three anomalies (Insertion, Update, Deletion) are completely ELIMINATED!
+
+================================================================================
+6. POSTGRESQL DDL ARCHITECTURE: WHY EVERY LINE MATTERS
+================================================================================
+Take a look at `lab2/sql/schema_hr_3nf.sql`:
+
+1. The Circular Foreign Key Trick:
+   - A Department has a `manager_id` pointing to `employees`.
+   - But an Employee has a `department_id` pointing to `departments`.
+   - If you try to create both at the same time with strict NOT NULL foreign keys, 
+     PostgreSQL throws an error because neither table exists yet!
+   - Solution:
+     Create `departments` first with `manager_id INT NULL`.
+     Then create `employees` with `REFERENCES departments(department_id)`.
+     Finally, run:
+     `ALTER TABLE departments ADD CONSTRAINT fk_department_manager FOREIGN KEY (manager_id) REFERENCES employees(employee_id) ON DELETE SET NULL;`
+     This allows departments to be seeded cleanly!
+
+2. Check Constraints (CHECK):
+   - `CHECK (budget > 0)`: Prevents negative or zero department budgets.
+   - `CHECK (min_salary <= max_salary)`: Prevents inverted salary grades.
+   - `CHECK (base_salary >= 85000.00)`: Enforces Kazakhstan statutory minimum wage!
+   - `CHECK (birth_date <= hire_date - INTERVAL '18 years')`: Guarantees legal adult employment.
+   - `CHECK (weekly_hours BETWEEN 1 AND 40)`: Enforces standard labor law working hours.
+   - `CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')`: Validates corporate email regex.
+   - `CHECK (iin ~ '^[0-9]{12}$')`: Enforces exact 12-digit national ID.
+
+3. Referential Actions:
+   - `ON DELETE RESTRICT` on `departments`: If a manager tries to delete the Engineering 
+     department while employees are assigned, PostgreSQL aborts and blocks the delete!
+   - `ON DELETE CASCADE` on `project_assignments`: If an employee is terminated, their 
+     temporary project assignments are automatically cleaned up, preventing orphan records.
+   - `ON DELETE SET NULL` on `manager_id`: If a manager resigns, the department is not 
+     deleted; its manager field is simply set to NULL until a replacement is appointed.
+
+================================================================================
+7. THE PYTHON MICROSERVICE & PYTEST SUITE
+================================================================================
+Our Python microservice (`lab2/src/`):
+- `database.py`: Manages the database engine and sessions.
+- `models.py`: Defines SQLAlchemy 2.0 ORM classes that match our 3NF schema 1-to-1.
+- `app.py`: A lightweight Flask REST microservice with endpoints for `/departments`, 
+  `/job-roles`, `/employees`, `/projects`, `/assignments`, and `/analytics/department-salaries`.
+- `test_microservice.py`: Automated Pytest suite. When we run:
+  `pytest lab2/src/test_microservice.py -v`
+  All 10 test cases pass in 0.32 seconds:
+  - test_br01_department_positive_budget PASSED
+  - test_br03_employee_constraints PASSED
+  - test_br04_job_role_salary_bounds PASSED
+  - test_br05_project_date_constraints PASSED
+  - test_br06_project_assignment_uniqueness_and_hours PASSED
+  - test_br08_performance_review_bounds PASSED
+  - test_br09_payroll_deduction_integrity PASSED
+  - test_api_health PASSED
+  - test_api_department_flow PASSED
+  - test_api_validation_errors PASSED
+
+================================================================================
+8. TOP 10 LAB DEFENSE QUESTIONS & WINNING ANSWERS
+================================================================================
+
+Q1: Why did you choose the Human Resources (HR) domain?
+A1: "According to the student assignment rules, domain selection is strictly 
+governed by the last digit of the student identification number. My Student ID is 
+25MD0303, which ends in the digit 3. The assignment guide states that IDs ending in 
+1 and 3 must implement Human Resources (HR)."
+
+Q2: What is the difference between 1NF, 2NF, and 3NF?
+A2: "1NF eliminates repeating groups and enforces atomic values. 2NF is in 1NF and 
+eliminates partial functional dependencies on composite primary keys. 3NF is in 2NF 
+and eliminates transitive dependencies, meaning non-key attributes depend only directly 
+on the primary key."
+
+Q3: Can you explain an Insertion Anomaly that existed before 3NF?
+A3: "In the unnormalized table where Employee and Project were merged into a composite 
+key (emp_id, proj_id), we could not insert a newly created Department or Project without 
+first hiring an employee to staff it, because primary key columns cannot contain NULL values. 
+In 3NF, Departments and Projects are independent tables and can be created at any time."
+
+Q4: How did you resolve the Many-to-Many (M:N) relationship between Employee and Project?
+A4: "In relational theory, Many-to-Many relationships cannot be implemented directly 
+with foreign keys without creating massive redundancy. We resolved it by creating an 
+associative junction entity, `project_assignments`, which decomposes the M:N into two 
+1:N relationships (`departments -> assignments` and `projects -> assignments`). This table 
+also holds intersection attributes like `weekly_hours` and `role_in_project`, and enforces a 
+composite UNIQUE constraint on `(employee_id, project_id)`."
+
+Q5: How did you handle the circular foreign key dependency between Department and Employee?
+A5: "A department references an employee as its manager, but an employee references a department 
+as their employer. In PostgreSQL, this circular dependency was solved by creating the departments 
+table with a nullable `manager_id`, creating the employees table, and then adding the foreign key 
+constraint via `ALTER TABLE ... ON DELETE SET NULL`. In SQLAlchemy, we used `use_alter=True` and 
+`post_update=True`."
+
+Q6: What happens if someone tries to insert an employee with a salary below 85,000 KZT?
+A6: "The PostgreSQL engine immediately rejects the transaction with a CHECK constraint 
+violation (`chk_minimum_wage_statutory`), and our Python REST API returns HTTP status code 
+422 Unprocessable Entity. This guarantees statutory legal compliance."
+
+Q7: What is the difference between ON DELETE RESTRICT and ON DELETE CASCADE in your schema?
+A7: "We use ON DELETE RESTRICT on departments and job roles so that a manager cannot accidentally 
+delete a department while active employees belong to it. Conversely, we use ON DELETE CASCADE 
+on project assignments so that when a temporary worker leaves, their assignment records are 
+automatically cleaned up to prevent orphaned rows."
+
+Q8: What candidate keys exist in your Employee table?
+A8: "In our Employee table, the primary key is the surrogate `employee_id`. The natural 
+candidate keys are `iin` (the 12-digit national identity number) and `email` (the corporate email 
+address). Both are enforced with UNIQUE constraints."
+
+Q9: What is the purpose of the analytical reporting view `v_department_salary_expenditure`?
+A9: "It joins departments and employees, aggregates total headcount and monthly base salary spend, 
+and computes annual budget utilization as a percentage. This enables real-time executive financial 
+auditing without having to write complex multi-table joins repeatedly."
+
+Q10: Why did you write automated tests in Pytest?
+A10: "Automated tests prove that our theoretical business requirements (BR-01 through BR-10) are 
+strictly enforced in code. We wrote 10 test cases testing valid and invalid inputs (such as duplicate 
+emails, negative budgets, and hours over 40). All 10 tests passed with 100% success in 0.32 seconds."
+
+================================================================================
+END OF CODE EXPLANATION GUIDE
+================================================================================

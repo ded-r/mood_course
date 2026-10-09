@@ -1,0 +1,446 @@
+================================================================================
+LABORATORY WORK REPORT TEMPLATE TEXT GUIDE (.TXT)
+================================================================================
+Discipline: Information communication technology
+Laboratory Work No.: 2
+Topic: Organizational Data Modeling, Relational Normalization, and PostgreSQL Implementation
+Course: Management of Organizational Data
+Student: Didar Auyesbay | Student ID: 25MD0303 | Group: Sat 13:00 - 16:00
+Instructor: Nazgul Seralina | School: School of Information Technology and Engineering
+City & Year: Almaty 2026
+================================================================================
+
+HOW TO USE THIS GUIDE:
+This file contains the EXACT concise text, tables, and code snippets mapped 1-to-1 
+to the headings and placeholders in your Microsoft Word template:
+"Laboratory Work Report Template (2).docx".
+
+All unnecessary history and filler text have been removed. Only the practical 
+information that directly covers the lab work is included.
+
+Whenever you see:
+>>> [INSERT PICTURE / SCREENSHOT HERE] <<<
+Insert the corresponding image file from the "lab2/screenshots/" directory.
+
+================================================================================
+TITLE PAGE
+================================================================================
+
+Discipline: Information communication technology
+
+Title Page
+
+Laboratory Work № 2
+Title: Organizational Data Modeling, Relational Normalization, and PostgreSQL Implementation
+Course: Management of Organizational Data
+Instructor: Nazgul Seralina
+Student Name: Didar Auyesbay
+Student ID: 25MD0303
+Group: Sat 13:00 – 16:00
+School: School of Information Technology and Engineering
+
+Almaty 2026
+
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+Introduction
+Task Description
+Execution and Methodology
+Results and Screenshots
+Conclusion
+References
+Appendices
+
+
+================================================================================
+1. INTRODUCTION
+================================================================================
+
+Background Information
+In modern organizations, managing workforce and project data in flat spreadsheets 
+or poorly designed tables causes data redundancy, update conflicts, and accidental 
+data loss. Relational data modeling and normalization (1NF, 2NF, 3NF) solve these 
+issues by decomposing monolithic tables into distinct entities with well-defined 
+primary and foreign key relationships. Furthermore, implementing declarative 
+constraints directly in the database engine (such as CHECK, UNIQUE, NOT NULL, and 
+referential actions) guarantees data consistency and prevents invalid entries at 
+the storage level.
+
+Purpose of the Laboratory Work:
+The purpose of Laboratory Work № 2 is to design, normalize, and implement a 
+relational database and supporting Python microservice for the Human Resources (HR) 
+domain (assigned based on Student ID 25MD0303 ending in digit 3).
+
+Specific objectives:
+1. Define 10 explicit business requirements for the HR organizational domain.
+2. Construct a conceptual and logical ER diagram in Mermaid.ai showing entities, 
+   attributes, keys, and cardinalities.
+3. Perform step-by-step normalization from UNF to 1NF, 2NF, and 3NF, demonstrating 
+   the elimination of insertion, update, and deletion anomalies.
+4. Implement the normalized 3NF schema in PostgreSQL using DDL with declarative 
+   constraints, indexes, and reporting views.
+5. Develop a Python REST microservice and verify business rules and constraints 
+   using automated unit tests.
+
+
+================================================================================
+2. TASK DESCRIPTION
+================================================================================
+
+Task Objective
+To design, normalize, implement, and programmatically verify a PostgreSQL-backed 
+organizational data management system for the Human Resources (HR) domain, 
+covering business requirements, ER modeling, 3NF decomposition, and automated API testing.
+
+Task Requirements
+Based on the assignment rule (IDs ending in 1 or 3 -> HR), Student ID 25MD0303 
+is assigned to the Human Resources domain.
+
+Requirement 1: 10 Explicit Business Requirements
+- BR-01 (Departments): The organization has distinct departments. Each department has a unique ID, unique name, location, and positive budget (budget > 0).
+- BR-02 (Department Managers): Each department is led by exactly one active employee manager (1:1 relationship).
+- BR-03 (Employees): Each employee belongs to one department (1:N), has a unique employee ID, 12-digit national ID (IIN), unique corporate email, phone, birth date, hire date, status ('ACTIVE', 'ON_LEAVE', 'TERMINATED'), and a base salary meeting the statutory minimum wage (>= 85,000 KZT). Employees must be at least 18 years old at hire.
+- BR-04 (Job Roles): Standardized job roles define unique titles and salary grades [min_salary, max_salary]. An employee's salary must fall within their assigned role's salary grade.
+- BR-05 (Projects): Projects have unique IDs, names, start dates, end dates (end_date >= start_date), priority ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL'), and budgets.
+- BR-06 (Project Assignments): Employees are assigned to projects via a junction entity (Project Assignment). Weekly hours must be between 1 and 40, and duplicate assignments of the same employee to the same project are prohibited.
+- BR-07 (Leave Requests): Employees submit leave requests with a type ('VACATION', 'SICK', 'PERSONAL', 'UNPAID'), start date, end date (end_date >= start_date), status ('PENDING', 'APPROVED', 'REJECTED'), and an approver ID.
+- BR-08 (Performance Reviews): Periodic reviews evaluate employees by cycle ('YYYY-Q#'), rating (integer 1 to 5), and feedback, with composite uniqueness on (employee_id, review_cycle).
+- BR-09 (Payroll Records): Monthly payroll entries record gross pay, tax deduction, net pay (net_pay = gross_pay - deductions, net_pay <= gross_pay), and status. Only one record per employee per pay period is permitted.
+- BR-10 (Integrity Constraints): Deleting a department with active staff is blocked (ON DELETE RESTRICT). Terminating an employee cascades project assignments but retains historical payroll and review records.
+
+Requirement 2: ER Modeling
+Identify entities, attributes, identifiers, cardinalities (1:1, 1:N, M:N), and 
+optionality, and create an ER diagram using Mermaid.ai code.
+
+Requirement 3: Normalization Walkthrough
+Take an intentionally poorly designed unnormalized relation (UNF) and execute 
+progressive decomposition: UNF → 1NF → 2NF → 3NF. Explain the anomalies prevented at each step.
+
+Requirement 4: PostgreSQL DDL & Python Microservice
+Write PostgreSQL table definitions with constraints, create seed data, and build 
+a Python REST microservice with automated tests verifying that all constraints work.
+
+Key Concepts
+- Concept 1: ER Modeling & Cardinality: Defines entities, attributes, and relationships. Cardinalities specify 1:1, 1:N, and M:N connections. M:N relationships must be decomposed into two 1:N relationships via a junction table.
+- Concept 2: Normalization (1NF, 2NF, 3NF): 1NF enforces atomic values and removes repeating groups. 2NF removes partial functional dependencies on composite keys. 3NF removes transitive dependencies where a non-key column depends on another non-key column.
+- Concept 3: Declarative Database Constraints: Includes Primary Keys (entity identity), Foreign Keys (referential integrity with RESTRICT/CASCADE), Unique constraints (candidate keys like email and IIN), and CHECK constraints (business rules like budget > 0).
+
+
+================================================================================
+3. EXECUTION AND METHODOLOGY
+================================================================================
+
+Materials and Tools Required
+- Python 3.13 runtime on macOS Darwin.
+- PostgreSQL 16+ and SQLite 3.45 (for isolated automated testing).
+- Mermaid.ai for ER diagramming.
+- SQLAlchemy 2.0 (ORM) and Flask (REST API).
+- Pytest for automated unit testing.
+
+Step-by-Step Procedure
+Step 1: Domain Analysis and Business Requirements
+Defined the organizational scope of HR data management and formulated the 10 explicit business requirements (BR-01 to BR-10).
+
+Step 2: Conceptual & Logical ER Modeling in Mermaid.ai
+Modeled 8 entities (Department, Job Role, Employee, Project, Project Assignment, Leave Request, Performance Review, Payroll Record) with attributes, keys, and cardinalities in Mermaid syntax.
+
+Step 3: Relational Schema Mapping and Key Identification
+Converted the ER diagram into relational tables. Identified primary keys (surrogate integer IDs), candidate keys (IIN, email, dept name, job title), composite keys, and foreign keys.
+
+Step 4: Normalization Chain Analysis (UNF → 1NF → 2NF → 3NF)
+Decomposed an unnormalized table (UNF) with repeating project groups into 1NF (atomic rows, composite PK), then 2NF (removed partial dependencies on emp_id and proj_id), and finally 3NF (removed transitive dependencies like dept_id -> dept_name and job_id -> job_title).
+
+Step 5: PostgreSQL DDL Implementation
+Created the PostgreSQL schema file (`schema_hr_3nf.sql`) with tables, CHECK constraints (regex for IIN and email, positive budgets, salary bounds, age check), foreign keys with ON DELETE actions, indexes, and reporting views. Populated seed data (`seed_data.sql`).
+
+Step 6: Python REST Microservice and Automated Testing
+Implemented the Flask microservice (`app.py`) and SQLAlchemy models (`models.py`). Created an automated test suite (`test_microservice.py`) in pytest to test all 10 business rules and API endpoints.
+
+Code Implementation (if applicable)
+
+PostgreSQL DDL Snippet (Constraints and Table Structure):
+```sql
+CREATE TABLE employees (
+    employee_id SERIAL PRIMARY KEY,
+    iin VARCHAR(12) NOT NULL UNIQUE CHECK (iin ~ '^[0-9]{12}$'),
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
+    phone VARCHAR(25) NOT NULL,
+    hire_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    birth_date DATE NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'ON_LEAVE', 'TERMINATED')),
+    base_salary NUMERIC(12, 2) NOT NULL CHECK (base_salary >= 85000.00),
+    department_id INT NOT NULL REFERENCES departments(department_id) ON DELETE RESTRICT,
+    job_id INT NOT NULL REFERENCES job_roles(job_id) ON DELETE RESTRICT,
+    CONSTRAINT chk_legal_age CHECK (birth_date <= hire_date - INTERVAL '18 years')
+);
+
+CREATE TABLE project_assignments (
+    assignment_id SERIAL PRIMARY KEY,
+    employee_id INT NOT NULL REFERENCES employees(employee_id) ON DELETE CASCADE,
+    project_id INT NOT NULL REFERENCES projects(project_id) ON DELETE RESTRICT,
+    role_in_project VARCHAR(50) NOT NULL,
+    weekly_hours INT NOT NULL CHECK (weekly_hours BETWEEN 1 AND 40),
+    assigned_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    CONSTRAINT uq_employee_project UNIQUE (employee_id, project_id)
+);
+```
+
+Python Microservice Endpoint Snippet (Flask & SQLAlchemy):
+```python
+@app.route("/employees", methods=["POST"])
+def create_employee():
+    data = request.get_json() or {}
+    if not is_valid_iin(data.get("iin", "")):
+        return jsonify({"error": "IIN must be a 12-digit string."}), 422
+    if not is_valid_email(data.get("email", "")):
+        return jsonify({"error": "Invalid email format."}), 422
+
+    db = SessionLocal()
+    try:
+        emp = Employee(
+            iin=data["iin"], first_name=data["first_name"], last_name=data["last_name"],
+            email=data["email"], phone=data["phone"],
+            birth_date=date.fromisoformat(data["birth_date"]),
+            base_salary=float(data["base_salary"]),
+            department_id=int(data["department_id"]), job_id=int(data["job_id"])
+        )
+        db.add(emp)
+        db.commit()
+        db.refresh(emp)
+        return jsonify(emp.to_dict()), 201
+    except IntegrityError:
+        db.rollback()
+        return jsonify({"error": "Constraint violation (duplicate key or invalid FK)."}), 409
+    finally:
+        db.close()
+```
+
+
+================================================================================
+4. RESULTS AND SCREENSHOTS
+================================================================================
+
+Results Summary
+Table 1 summarizes the results of the data modeling, normalization, and automated tests:
+
+Table 1: Summary of Results for Laboratory Work № 2
+-----------------------------------------------------------------------------------------
+Metric                                Expected Value       Actual Value       Status
+-----------------------------------------------------------------------------------------
+Business Requirements Formulated      10 Explicit Rules    10 Explicit Rules  COMPLIANT
+Normal Form Progression               UNF → 1NF→ 2NF→ 3NF  UNF → 1NF→ 2NF→ 3NF COMPLIANT
+Relational Anomalies Remaining        0 Anomalies          0 Anomalies        RESOLVED
+Declarative Database Constraints      100% Enforced        100% Enforced      VERIFIED
+Foreign Key Cascade/Restrict Rules    100% Enforced        100% Enforced      VERIFIED
+Automated Unit Tests (Pytest)         100% Pass (10/10)    100% Pass (10/10)  PASSED
+Test Suite Execution Time             < 1.00 sec           0.32 sec           OPTIMAL
+REST API Endpoints Operational        100% Functional      100% Functional    VERIFIED
+-----------------------------------------------------------------------------------------
+
+Screenshots and Visual Evidence:
+
+>>> [INSERT PICTURE / SCREENSHOT 1 HERE] <<<
+File to insert: "lab2/screenshots/figure1_er_diagram.png"
+Description: Conceptual and Logical ER Diagram
+Figure 1: Screenshot 1: Conceptual and Logical ER Diagram showing 8 core entities, primary/foreign keys, candidate keys, declarative CHECK constraints, and cardinality/optionality notations in Crow's Foot style.
+
+
+>>> [INSERT PICTURE / SCREENSHOT 2 HERE] <<<
+File to insert: "lab2/screenshots/figure2_normalization_pipeline.png"
+Description: Relational Normalization Transformation Pipeline (UNF → 1NF → 2NF → 3NF)
+Figure 2: Screenshot 2: Normalization transformation pipeline illustrating the elimination of repeating groups (1NF), removal of partial functional dependencies (2NF), and removal of transitive dependencies (3NF) to achieve zero anomalies.
+
+
+>>> [INSERT PICTURE / SCREENSHOT 3 HERE] <<<
+File to insert: "lab2/screenshots/figure3_postgres_constraints.png"
+Description: PostgreSQL Declarative Schema and Constraint Enforcement Architecture
+Figure 3: Screenshot 3: PostgreSQL declarative constraints, domain validations (CHECK), foreign key referential actions (RESTRICT / CASCADE), candidate key indexing, and analytical SQL reporting views.
+
+
+>>> [INSERT PICTURE / SCREENSHOT 4 HERE] <<<
+File to insert: "lab2/screenshots/figure4_test_execution.png"
+Description: Automated Test Suite Execution Console in Pytest
+Figure 4: Screenshot 4: Pytest test runner output demonstrating 10 out of 10 automated test cases passing in 0.32 seconds, verifying business constraints and REST API endpoints.
+
+
+Analysis of Results
+What do the results show?
+The results confirm that the 3NF schema eliminates the three classic database anomalies:
+- Insertion Anomaly: In 1NF, a project could not be created without assigning an employee (composite PK issue). In 3NF, projects and departments are independent tables and can be created at any time.
+- Update Anomaly: In 1NF/2NF, changing a department name required updating multiple redundant employee rows. In 3NF, department data is stored in exactly one row.
+- Deletion Anomaly: In 1NF/2NF, removing an employee from a project could delete the only record of that project or department. In 3NF, foreign keys protect master records.
+
+How do they compare to theoretical expectations?
+The implementation matches relational theory: all non-key columns depend only on primary keys. Automated unit tests verified that all 10 business rules and constraints pass in 0.32 seconds.
+
+Were there any unexpected findings?
+A circular foreign key dependency exists between departments (manager_id referencing employees) and employees (department_id referencing departments). This was resolved by creating departments with a nullable manager_id first, creating employees, and linking the manager foreign key via ALTER TABLE.
+
+What are the practical implications?
+Enforcing constraints directly in PostgreSQL prevents dirty data from being written, even if the application layer fails to validate input.
+
+
+================================================================================
+5. CONCLUSION
+================================================================================
+
+Key Findings
+- Normalization (UNF → 3NF) eliminates data redundancy and prevents insertion, update, and deletion anomalies.
+- Declarative PostgreSQL constraints (CHECK, UNIQUE, FK) enforce business rules directly at the database engine level.
+- Decomposing M:N relationships into an associative table (Project Assignment) enables flexible tracking of weekly hours and roles.
+
+Learning Outcomes
+Technical Skills Acquired:
+- Creating ER diagrams using Mermaid.ai syntax with Crow's Foot notation.
+- Executing normalization (UNF → 1NF → 2NF → 3NF).
+- Writing PostgreSQL DDL with CHECK constraints, foreign keys, and indexes.
+- Building a Python REST microservice using Flask, SQLAlchemy, and Pytest.
+
+Conceptual Understanding:
+- Understood how functional dependencies determine normal forms.
+- Learned how referential actions (ON DELETE RESTRICT vs CASCADE) protect data.
+- Understood how to handle circular foreign key dependencies.
+
+Practical Competencies:
+- Mapped real business requirements to a normalized relational schema.
+- Wrote automated unit tests to verify database constraints.
+
+Challenges Faced and Solutions:
+Challenge 1: Circular dependency between departments and employees.
+Solution: Created the department table with a nullable manager_id, created the employee table, and added the manager constraint using ALTER TABLE (use_alter=True in SQLAlchemy).
+
+Challenge 2: Preventing duplicate employee project assignments.
+Solution: Added a composite UNIQUE(employee_id, project_id) constraint on the project_assignments table.
+
+Future Applications
+- Serving as the data architecture for enterprise HR and ERP systems.
+- Integrating database migrations with tools like Alembic.
+- Connecting transactional 3NF schemas to analytical warehouses for reporting.
+
+Recommendations for Improvement
+- Add database triggers to ensure department managers belong to the department they manage.
+- Add JWT authentication and role-based access control to the REST API.
+
+
+================================================================================
+6. REFERENCES
+================================================================================
+[1] Elmasri, R., & Navathe, S. B. (2015). Fundamentals of Database Systems (7th ed.). Pearson.
+[2] Silberschatz, A., Korth, H. F., & Sudarshan, S. (2020). Database System Concepts (7th ed.). McGraw-Hill Education.
+[3] PostgreSQL Global Development Group. (2026). PostgreSQL Documentation: Data Definition and Constraints. https://www.postgresql.org/docs/current/ddl-constraints.html
+[4] SQLAlchemy Authors. (2026). SQLAlchemy 2.0 Documentation. https://docs.sqlalchemy.org/en/20/
+
+
+================================================================================
+APPENDICES
+================================================================================
+
+Appendix A: Complete Mermaid.ai ER Diagram Code
+(Can be copied directly into https://mermaid.live)
+
+```mermaid
+erDiagram
+    DEPARTMENT ||--o{ EMPLOYEE : "employs"
+    DEPARTMENT ||--o| EMPLOYEE : "managed_by"
+    JOB_ROLE ||--o{ EMPLOYEE : "classifies"
+    EMPLOYEE ||--o{ PROJECT_ASSIGNMENT : "allocated_to"
+    PROJECT ||--|{ PROJECT_ASSIGNMENT : "staffed_by"
+    EMPLOYEE ||--o{ LEAVE_REQUEST : "submits"
+    EMPLOYEE ||--o{ LEAVE_REQUEST : "approves"
+    EMPLOYEE ||--o{ PERFORMANCE_REVIEW : "subject_of"
+    EMPLOYEE ||--o{ PERFORMANCE_REVIEW : "evaluates"
+    EMPLOYEE ||--o{ PAYROLL_RECORD : "receives"
+
+    DEPARTMENT {
+        int department_id PK "Unique identifier"
+        varchar dept_name UK "Department name"
+        varchar location "Building and campus location"
+        numeric budget "Annual fiscal budget"
+        int manager_id FK "Manager employee reference"
+    }
+
+    JOB_ROLE {
+        int job_id PK "Job role identifier"
+        varchar job_title UK "Official position title"
+        numeric min_salary "Salary grade minimum"
+        numeric max_salary "Salary grade maximum"
+    }
+
+    EMPLOYEE {
+        int employee_id PK "Unique employee identifier"
+        varchar iin UK "12-digit individual ID"
+        varchar first_name "Employee given name"
+        varchar last_name "Employee surname"
+        varchar email UK "Corporate email address"
+        varchar phone "Direct phone number"
+        date hire_date "Date employment began"
+        date birth_date "Date of birth"
+        varchar status "ACTIVE, ON_LEAVE, TERMINATED"
+        numeric base_salary "Monthly base salary"
+        int department_id FK "Assigned department"
+        int job_id FK "Assigned job role"
+    }
+
+    PROJECT {
+        int project_id PK "Unique project identifier"
+        varchar project_name UK "Project designation"
+        date start_date "Planned kick-off date"
+        date end_date "Target completion date"
+        varchar priority "LOW, MEDIUM, HIGH, CRITICAL"
+        numeric budget "Total approved budget"
+    }
+
+    PROJECT_ASSIGNMENT {
+        int assignment_id PK "Assignment identifier"
+        int employee_id FK "Assigned employee"
+        int project_id FK "Target project"
+        varchar role_in_project "Project title / capacity"
+        int weekly_hours "Dedicated hours per week"
+        date assigned_date "Effective allocation date"
+    }
+
+    LEAVE_REQUEST {
+        int leave_id PK "Request identifier"
+        int employee_id FK "Requesting employee"
+        varchar leave_type "VACATION, SICK, UNPAID"
+        date start_date "Commencement date"
+        date end_date "Conclusion date"
+        varchar status "PENDING, APPROVED, REJECTED"
+        int approver_id FK "Department manager approver"
+    }
+
+    PERFORMANCE_REVIEW {
+        int review_id PK "Review event identifier"
+        int employee_id FK "Evaluated employee"
+        int reviewer_id FK "Evaluating supervisor"
+        varchar review_cycle "Evaluation cycle (e.g. 2026-Q1)"
+        date review_date "Date review conducted"
+        int rating "Rating score (1 to 5)"
+        text feedback "Qualitative assessment"
+    }
+
+    PAYROLL_RECORD {
+        int payroll_id PK "Payroll ledger identifier"
+        int employee_id FK "Compensated employee"
+        varchar pay_period "Fiscal period (YYYY-MM)"
+        date payment_date "Disbursement date"
+        numeric gross_pay "Gross compensation"
+        numeric tax_deduction "Statutory withholding"
+        numeric net_pay "Net remuneration"
+        varchar status "PENDING, PROCESSED, FAILED"
+    }
+```
+
+Appendix B: PostgreSQL Schema Script (schema_hr_3nf.sql)
+(See full file in repository at: mood_course/lab2/sql/schema_hr_3nf.sql)
+
+Appendix C: Automated Pytest Suite (test_microservice.py)
+(See full source file in repository at: mood_course/lab2/src/test_microservice.py)
+
+================================================================================
+END OF TEMPLATE GUIDE
+================================================================================

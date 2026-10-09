@@ -1,0 +1,18 @@
+%% ==============================================================================
+%% UNNORMALIZED (UNF) DATA MODEL: MONOLITHIC HR SPREADSHEET TABLE
+%% Shows all organizational concepts crammed into a single unnormalized relation
+%% with repeating groups, non-atomic attributes, and high redundancy.
+%% ==============================================================================
+erDiagram
+    UNNORMALIZED_HR_SPREADSHEET {
+        int emp_id "Non-scalar/unstable identifier"
+        string full_name "NON-ATOMIC COMPOSITE: contains First + Last name"
+        string corporate_email "Email address"
+        int dept_id "Redundant department identifier"
+        string dept_name "Redundant department name"
+        string dept_manager "Redundant department manager name"
+        int job_id "Redundant job identifier"
+        string job_title "Redundant job position title"
+        numeric salary "Base salary"
+        string projects_assigned "REPEATING GROUP: nested array of (proj_id, proj_name, role, hours)"
+    }

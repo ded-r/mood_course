@@ -1,0 +1,90 @@
+erDiagram
+    DEPARTMENT ||--o{ EMPLOYEE : "employs"
+    DEPARTMENT ||--o| EMPLOYEE : "managed_by"
+    JOB_ROLE ||--o{ EMPLOYEE : "classifies"
+    EMPLOYEE ||--o{ PROJECT_ASSIGNMENT : "allocated_to"
+    PROJECT ||--|{ PROJECT_ASSIGNMENT : "staffed_by"
+    EMPLOYEE ||--o{ LEAVE_REQUEST : "submits"
+    EMPLOYEE ||--o{ LEAVE_REQUEST : "approves"
+    EMPLOYEE ||--o{ PERFORMANCE_REVIEW : "subject_of"
+    EMPLOYEE ||--o{ PERFORMANCE_REVIEW : "evaluates"
+    EMPLOYEE ||--o{ PAYROLL_RECORD : "receives"
+
+    DEPARTMENT {
+        int department_id PK "Unique identifier"
+        varchar dept_name UK "Department name"
+        varchar location "Building and campus location"
+        numeric budget "Annual fiscal budget"
+        int manager_id FK "Manager employee reference"
+    }
+
+    JOB_ROLE {
+        int job_id PK "Job role identifier"
+        varchar job_title UK "Official position title"
+        numeric min_salary "Salary grade minimum"
+        numeric max_salary "Salary grade maximum"
+    }
+
+    EMPLOYEE {
+        int employee_id PK "Unique employee identifier"
+        varchar iin UK "12-digit individual ID"
+        varchar first_name "Employee given name"
+        varchar last_name "Employee surname"
+        varchar email UK "Corporate email address"
+        varchar phone "Direct phone number"
+        date hire_date "Date employment began"
+        date birth_date "Date of birth"
+        varchar status "ACTIVE, ON_LEAVE, TERMINATED"
+        numeric base_salary "Monthly base salary"
+        int department_id FK "Assigned department"
+        int job_id FK "Assigned job role"
+    }
+
+    PROJECT {
+        int project_id PK "Unique project identifier"
+        varchar project_name UK "Project designation"
+        date start_date "Planned kick-off date"
+        date end_date "Target completion date"
+        varchar priority "LOW, MEDIUM, HIGH, CRITICAL"
+        numeric budget "Total approved budget"
+    }
+
+    PROJECT_ASSIGNMENT {
+        int assignment_id PK "Assignment identifier"
+        int employee_id FK "Assigned employee"
+        int project_id FK "Target project"
+        varchar role_in_project "Project title / capacity"
+        int weekly_hours "Dedicated hours per week"
+        date assigned_date "Effective allocation date"
+    }
+
+    LEAVE_REQUEST {
+        int leave_id PK "Request identifier"
+        int employee_id FK "Requesting employee"
+        varchar leave_type "VACATION, SICK, UNPAID"
+        date start_date "Commencement date"
+        date end_date "Conclusion date"
+        varchar status "PENDING, APPROVED, REJECTED"
+        int approver_id FK "Department manager approver"
+    }
+
+    PERFORMANCE_REVIEW {
+        int review_id PK "Review event identifier"
+        int employee_id FK "Evaluated employee"
+        int reviewer_id FK "Evaluating supervisor"
+        varchar review_cycle "Evaluation cycle (e.g. 2026-Q1)"
+        date review_date "Date review conducted"
+        int rating "Rating score (1 to 5)"
+        text feedback "Qualitative assessment"
+    }
+
+    PAYROLL_RECORD {
+        int payroll_id PK "Payroll ledger identifier"
+        int employee_id FK "Compensated employee"
+        varchar pay_period "Fiscal period (YYYY-MM)"
+        date payment_date "Disbursement date"
+        numeric gross_pay "Gross compensation"
+        numeric tax_deduction "Statutory withholding"
+        numeric net_pay "Net remuneration"
+        varchar status "PENDING, PROCESSED, FAILED"
+    }
