@@ -1,0 +1,26 @@
+cwe_code,cwe_name,severity_level,description
+CWE-20,Improper Input Validation,High,Software does not validate or incorrectly validates input that can affect control flow or data.
+CWE-79,Cross-site Scripting (XSS),High,Improper neutralization of input during web page generation allowing script injection.
+CWE-22,Path Traversal,High,Improper limitation of a pathname to a restricted directory (dot-dot-slash).
+CWE-200,Information Exposure,Medium,Exposure of sensitive information to an unauthorized actor.
+CWE-287,Improper Authentication,Critical,Improper authentication allows an attacker to disguise as another user.
+CWE-264,"Permissions, Privileges, and Access Controls",High,Weaknesses related to the management of permissions and privileges.
+CWE-502,Deserialization of Untrusted Data,Critical,Application deserializes untrusted data without sufficiently verifying validity.
+CWE-119,Buffer Overflow,Critical,Memory buffer operations do not properly restrict bounds.
+CWE-125,Out-of-bounds Read,Medium,"Software reads data past the end, or before the beginning, of the intended buffer."
+CWE-787,Out-of-bounds Write,Critical,"Software writes data past the end, or before the beginning, of the intended buffer."
+CWE-89,SQL Injection,Critical,Improper neutralization of special elements used in an SQL Command.
+CWE-352,Cross-Site Request Forgery (CSRF),Medium,Web server does not verify that request was intentionally sent by submitter.
+CWE-310,Cryptographic Issues,Medium,Weaknesses related to cryptography and key management.
+CWE-399,Resource Management Errors,Medium,Improper resource management like memory leaks or unclosed handles.
+CWE-400,Uncontrolled Resource Consumption,Medium,Software does not properly restrict consumption of scarce system resources.
+CWE-284,Improper Access Control,High,Software does not restrict or incorrectly restricts access to a resource.
+CWE-269,Improper Privilege Management,High,"Software does not properly assign, modify, or track privileges."
+CWE-327,Use of Broken Cryptographic Algorithm,Medium,Use of broken or risky cryptographic algorithms.
+CWE-862,Missing Authorization,High,Software does not perform an authorization check when an actor attempts an action.
+CWE-863,Incorrect Authorization,High,Software performs authorization but improperly validates credentials.
+CWE-476,NULL Pointer Dereference,Medium,A NULL pointer dereference occurs when application dereferences null.
+CWE-190,Integer Overflow or Wraparound,Medium,Software performs calculation that can produce integer overflow.
+CWE-295,Improper Certificate Validation,High,Software does not validate or incorrectly validates certificate.
+CWE-770,Allocation of Resources Without Limits,Medium,Software allocates resources without limiting maximum amount.
+CWE-UNKNOWN,Unknown or Unmapped Weakness,Low,Weakness type not categorized or missing in upstream commit.

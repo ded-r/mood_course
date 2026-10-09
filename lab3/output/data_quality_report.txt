@@ -1,0 +1,14 @@
+TASK 6: DATA QUALITY VALIDATION SUITE REPORT
+============================================================
+
+| Data Quality Check Rule               |   Failed Records | Compliance Status   |
+|---------------------------------------|------------------|---------------------|
+| CHECK 1: Unique Sample ID             |                0 | PASSED              |
+| CHECK 2: Non-null Vulnerability Label |                0 | PASSED              |
+| CHECK 3: Valid Split Values           |                0 | PASSED              |
+| CHECK 4: Valid Dataset Partition      |                0 | PASSED              |
+| CHECK 5: Code Measurement Sanity      |                0 | PASSED              |
+| CHECK 6: Referential Integrity        |                0 | PASSED              |
+| CHECK 7: CWE Code Format              |                0 | PASSED              |
+
+OVERALL STATUS: ALL CHECKS PASSED (100%)

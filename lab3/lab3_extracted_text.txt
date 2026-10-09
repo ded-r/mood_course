@@ -1,0 +1,57 @@
+LABORATORY WORK 3
+Building an ETL Pipeline for aVulnerability-Detection Data Warehouse
+Lecture 4: Organizational Data Warehousing • ETL • Data Integration • Talend / Apache NiFi / Microsoft SSIS
+Level
+Master’s students
+Estimated time
+2–3 hours
+Work mode
+Pairs 
+Deliverables
+python file , Report + ETL output
+Domain
+Software security data
+1. Purpose
+The purpose of this laboratory work is to design and implement a small organizational data-integration pipeline that prepares software-vulnerability data for analytical storage. Students will connect the Lecture 4 concepts of data warehousing, ETL, data quality, and integration with the experimental data-management problems described in the research article “Finetuning Large Language Models for Vulnerability Detection” (Shestov et al., 2025).
+2. Learning outcomes
+Explain how a data warehouse differs from operational source systems and identify facts, dimensions, and analytical measures.
+Design an ETL pipeline that extracts heterogeneous data, transforms it into a consistent schema, validates quality, and loads it into a warehouse.
+Identify data-integration challenges such as schema mismatch, duplicates, missing values, inconsistent labels, class imbalance, and provenance.
+Use SQL, Python libraries to verify the warehouse and produce analytical queries relevant to vulnerability-detection research.
+3. Connection to the research article
+The article studies binary classification of Java functions as vulnerable or non-vulnerable and combines several vulnerability-data sources. The authors construct their data from CVEfixes, a manually curated dataset, and VCMatch. They also describe filtering and labeling procedures and create balanced and strongly imbalanced variants of the dataset. These characteristics make the paper a useful case study for ETL and data integration: before model training, data from heterogeneous sources must be extracted, standardized, cleaned, labeled, integrated, split, and made traceable.
+Research-to-ETL mapping:  Source datasets → extraction → label/schema harmonization → quality filtering → integrated vulnerability warehouse → balanced/imbalanced analytical views → ML-ready export.
+4. Scenario
+You are a data engineer in a university AI & Cybersecurity laboratory. Researchers collect vulnerability examples from several systems, but each source uses a different structure. Your task is to create a small warehouse and ETL workflow that produces a consistent, auditable dataset for later vulnerability-detection experiments.
+5. Input data
+Use datasets from research article : https://github.com/rmusab/vul-llm-finetune/tree/main/Datasets
+6. Laboratory tasks
+Task 1 — Read and analyse the paper 
+Identify: (a) the vulnerability-detection target, (b) the source datasets used by the authors, (c) the meaning of vulnerable/non-vulnerable labels, (d) the role of P1, P2 and P3, and (e) why class imbalance is an important data problem. Write a 100 word summary in your report.
+Task 2 — Design the data warehouse
+Draw a source-to-target architecture and the star schema. Clearly show source systems, staging, ETL/data-flow layer, warehouse, and analytical/ML consumer.
+Task 3 — Extract
+Use Python to extract two different formats (for example CSV or  JSON). Use datasets from research article : https://github.com/rmusab/vul-llm-finetune/tree/main/Datasets. 
+Keep the original raw values in staging tables or files so that transformations are traceable.
+Task 4 — Transform and integrate
+Standardize column names; convert Yes/No and 1/0 to one Boolean representation; normalize project names; handle missing values; remove or flag duplicates; calculate code_length; validate allowed values for P1/P2/P3 and train/validation/test; create surrogate keys for dimensions.
+Task 5 — Load
+Load dimensions first and then the fact table. Demonstrate either a full load or an incremental load.
+Task 6 — Data-quality checks
+Create at least five checks: unique record/sample ID; non-null vulnerability label; valid split; valid dataset partition;. Add one additional check of your choice.
+Task 7 — Analytical SQL
+Write queries that: (1) count vulnerable vs non-vulnerable samples; (2) calculate class ratio by dataset part; (3) count samples by source; (4) show top categories; (5) compare train/validation/test distributions; (6) identify missing/unknown records.
+Task 8 — Research interpretation
+Explain which ETL decisions could change an ML experiment. Discuss at least three: label errors, duplicates/data leakage, class imbalance, inconsistent project identifiers, missing values, or incorrect train/test integration.
+7. Expected report structure
+Title page
+Objective and learning outcomes
+Short article analysis
+Source-data description
+Warehouse/star-schema diagram
+ETL workflow and screenshots
+Transformation and data-quality rules
+SQL queries and results
+Conclusion
+8. Reference
+Shestov, A., Levichev, R., Mussabayev, R., Maslov, E., Zadorozhny, P., Cheshkov, A., Mussabayev, R., Toleu, A., Tolegen, G., & Krassovitskiy, A. (2025). Finetuning Large Language Models for Vulnerability Detection. IEEE Access, 13. https://doi.org/10.1109/ACCESS.2025.3546700
